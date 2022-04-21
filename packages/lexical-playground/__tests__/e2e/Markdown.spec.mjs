@@ -10,6 +10,7 @@ import {
   moveLeft,
   moveRight,
   redo,
+  selectAll,
   selectCharacters,
   toggleUnderline,
   undo,
@@ -21,6 +22,8 @@ import {
   focusEditor,
   initialize,
   pasteFromClipboard,
+  selectFromFormatDropdown,
+  selectOption,
   test,
 } from '../utils/index.mjs';
 
@@ -346,7 +349,9 @@ test.describe('Markdown', () => {
         test.skip(isPlainText);
         await focusEditor(page);
 
-        await page.keyboard.type(triggersAndExpectations[i].markdownImport);
+        await page.keyboard.type(
+          '```markdown ' + triggersAndExpectations[i].markdownImport,
+        );
         await click(page, 'i.markdown');
 
         const html = triggersAndExpectations[i].importExpectation;
@@ -371,6 +376,9 @@ test.describe('Markdown', () => {
     await pasteFromClipboard(page, {
       'text/plain': text,
     });
+    await selectAll(page);
+    await selectFromFormatDropdown(page, '.code');
+    await selectOption(page, '.code-language', {value: 'markdown'});
     await click(page, 'i.markdown');
     const html = `
     <h1 class=\"PlaygroundEditorTheme__h1 PlaygroundEditorTheme__ltr\" dir=\"ltr\">
