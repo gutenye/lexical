@@ -130,8 +130,10 @@ if (CAN_USE_BEFORE_INPUT) {
 let lastKeyDownTimeStamp = 0;
 let rootElementsRegistered = 0;
 let isSelectionChangeFromReconcile = false;
+let lastInputEvent;
 
 function onSelectionChange(
+  event: Event,
   domSelection: Selection,
   editor: LexicalEditor,
   isActive: boolean,
@@ -170,14 +172,30 @@ function onSelectionChange(
       }
       const anchor = selection.anchor;
       if (anchor.type === 'text') {
-        const anchorNode = anchor.getNode();
-        selection.format = anchorNode.getFormat();
+        if (!hasRecentInsertTextEvent(event)) {
+          const anchorNode = anchor.getNode();
+          selection.format = anchorNode.getFormat();
+        }
       } else if (anchor.type === 'element') {
         selection.format = 0;
       }
     }
     dispatchCommand(editor, SELECTION_CHANGE_COMMAND);
   });
+}
+
+const RECENT_EVENT_THRESHOLD = 100;
+
+function hasRecentInsertTextEvent(selectionChangeEvent: Event) {
+  if (lastInputEvent == null) {
+    return false;
+  }
+
+  return (
+    lastInputEvent.inputType === 'insertText' &&
+    selectionChangeEvent.timeStamp - lastInputEvent.timeStamp <
+      RECENT_EVENT_THRESHOLD
+  );
 }
 
 // This is a work-around is mainly Chrome specific bug where if you select
@@ -232,6 +250,7 @@ function $canRemoveText(
 }
 
 function onBeforeInput(event: InputEvent, editor: LexicalEditor): void {
+  lastInputEvent = event;
   const inputType = event.inputType;
 
   // We let the browser do its own thing for composition.
@@ -441,6 +460,7 @@ function onBeforeInput(event: InputEvent, editor: LexicalEditor): void {
 }
 
 function onInput(event: InputEvent, editor: LexicalEditor): void {
+  lastInputEvent = event;
   // We don't want the onInput to bubble, in the case of nested editors.
   event.stopPropagation();
   updateEditor(editor, () => {
@@ -642,10 +662,10 @@ function onDocumentSelectionChange(event: Event): void {
   const prevActiveEditor = activeNestedEditor || rootEditor;
 
   if (prevActiveEditor !== nextActiveEditor) {
-    onSelectionChange(selection, prevActiveEditor, false);
+    onSelectionChange(event, selection, prevActiveEditor, false);
   }
 
-  onSelectionChange(selection, nextActiveEditor, true);
+  onSelectionChange(event, selection, nextActiveEditor, true);
 
   // If newly selected editor is nested, then add it to the map, clean map otherwise
   if (nextActiveEditor !== rootEditor) {
